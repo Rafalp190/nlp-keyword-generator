@@ -274,7 +274,7 @@ def count_parameters(model: nn.Module):
 print(f'The model has {count_parameters(model):,} trainable parameters')
 
 PAD_IDX = TRG.vocab.stoi['<pad>']
-
+print("im here right after padding")
 criterion = nn.CrossEntropyLoss(ignore_index=PAD_IDX)
 
 import math
@@ -312,6 +312,7 @@ def train(model: nn.Module,
         optimizer.step()
 
         epoch_loss += loss.item()
+        print("Epoch loss : ", epoch_loss)
 
     return epoch_loss / len(iterator)
 
@@ -355,12 +356,13 @@ N_EPOCHS = 10
 CLIP = 1
 
 best_valid_loss = float('inf')
-
+print("About to start")
 for epoch in range(N_EPOCHS):
 
     start_time = time.time()
-
+    print("About to start training ")
     train_loss = train(model, train_iterator, optimizer, criterion, CLIP)
+    print("About to start validating ")
     valid_loss = evaluate(model, valid_iterator, criterion)
 
     end_time = time.time()
