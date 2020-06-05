@@ -77,18 +77,18 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-TEXT = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
+SRC = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
                             init_token='<sos>',
                             eos_token='<eos>',
                             lower=True)
-KEYS = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
+TRG = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
                             init_token='<sos>',
                             eos_token='<eos>',
                             lower=True,
                             is_target=True)
 
-tv_datafields = [("id", None),("text", TEXT),("keywords", KEYS)]
-td_datafields = [("id", None),("text", TEXT), ("keywords", None)]
+tv_datafields = [("id", None),("src", SRC),("trg", TRG)]
+td_datafields = [("id", None),("src", SRC), ("trg", TRG)]
 train_txt, val_txt = TabularDataset.splits(
                path="cured_data", # the root directory where the data lies
                train='train.csv', validation="val.csv",
@@ -102,14 +102,15 @@ test_txt = TabularDataset(
            skip_header=True, # if your csv header has a header, make sure to pass this to ensure it doesn't get proceesed as data!
            fields=td_datafields)
 
-TEXT.build_vocab(train_txt)
+SRC.build_vocab(train_txt)
+TRG.build_vocab(train_txt)
 # use torchtext to define the dataset field containing text
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def batchify(data, bsz):
     #print(data.examples[0].text)
-    data = TEXT.numericalize([data.examples[0].text])
+    data = SRC.numericalize([data.examples[0].src])
     # Divide the dataset into bsz parts.
     nbatch = data.size(0) // bsz
     # Trim off any extra elements that wouldn't cleanly fit (remainders).
@@ -131,7 +132,7 @@ def get_batch(source, i):
     target = source[i+1:i+1+seq_len].view(-1)
     return data, target
 
-ntokens = len(TEXT.vocab.stoi) # the size of vocabulary
+ntokens = len(SRC.vocab.stoi) # the size of vocabulary
 emsize = 200 # embedding dimension
 nhid = 200 # the dimension of the feedforward network model in nn.TransformerEncoder
 nlayers = 2 # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
@@ -149,7 +150,7 @@ def train():
     model.train() # Turn on the train mode
     total_loss = 0.
     start_time = time.time()
-    ntokens = len(TEXT.vocab.stoi)
+    ntokens = len(SRC.vocab.stoi)
     for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
     
         data, targets = get_batch(train_data, i)
@@ -178,7 +179,7 @@ def train():
 def evaluate(eval_model, data_source):
     eval_model.eval() # Turn on the evaluation mode
     total_loss = 0.
-    ntokens = len(TEXT.vocab.stoi)
+    ntokens = len(SRC.vocab.stoi)
     with torch.no_grad():
         for i in range(0, data_source.size(0) - 1, bptt):
             data, targets = get_batch(data_source, i)
