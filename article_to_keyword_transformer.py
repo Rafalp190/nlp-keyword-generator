@@ -84,7 +84,8 @@ TEXT = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
 KEYS = torchtext.data.Field(tokenize=get_tokenizer("basic_english"),
                             init_token='<sos>',
                             eos_token='<eos>',
-                            lower=True)
+                            lower=True,
+                            is_target=True)
 
 tv_datafields = [("id", None),("text", TEXT),("keywords", KEYS)]
 td_datafields = [("id", None),("text", TEXT), ("keywords", None)]
@@ -107,6 +108,7 @@ TEXT.build_vocab(train_txt)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def batchify(data, bsz):
+    #print(data.examples[0].text)
     data = TEXT.numericalize([data.examples[0].text])
     # Divide the dataset into bsz parts.
     nbatch = data.size(0) // bsz
@@ -151,7 +153,7 @@ def train():
     for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
     
         data, targets = get_batch(train_data, i)
-        print(data, targets)
+        #print(data, targets)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output.view(-1, ntokens), targets)
