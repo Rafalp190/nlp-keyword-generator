@@ -7,12 +7,13 @@ import spacy
 import torchtext
 from torchtext.data import Field, BucketIterator, TabularDataset
 import numpy as np
-
+from torchtext.data.utils import get_tokenizer
 import random
 import math
 import time
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import dill
 
 spacy_en = spacy.load('en')
 
@@ -52,6 +53,13 @@ test_txt = TabularDataset(
            skip_header=True, # if your csv header has a header, make sure to pass this to ensure it doesn't get proceesed as data!
            fields=td_datafields)
 print("Loaded Datasets")
+dill.dump(train_txt, './cured_data/train_txt')
+dill.dump(val_txt, './cured_data/val_txt')
+dill.dump(test_txt, './cured_data/test_txt')
+
+train_txt = dill.load('./cured_data/train_txt')
+val_txt = dill.load('./cured_data/val_txt')
+test_txt = dill.load('./cured_data/test_txt')
 SRC.build_vocab(train_txt)
 TRG.build_vocab(train_txt)
 
@@ -70,7 +78,7 @@ TRG.build_vocab(train_txt, min_freq = 2)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-BATCH_SIZE = 128
+BATCH_SIZE = 1
 print("Starting iterator")
 train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
     (train_txt, val_txt, test_txt), 
