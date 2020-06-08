@@ -116,9 +116,9 @@ class Encoder(nn.Module):
         super().__init__()
 
         self.device = device
-        print("Before embedding")
+
         self.tok_embedding = nn.Embedding(input_dim, hid_dim)
-        print("After embedding")
+
         self.pos_embedding = nn.Embedding(max_length, hid_dim)
         
         self.layers = nn.ModuleList([EncoderLayer(hid_dim, 
@@ -471,9 +471,9 @@ class Seq2Seq(nn.Module):
         
         return output, attention
 
-print(len(SRC.vocab))
+
 INPUT_DIM = len(SRC.vocab)
-print(len(TRG.vocab))
+
 OUTPUT_DIM = len(TRG.vocab)
 HID_DIM = 256
 ENC_LAYERS = 3
@@ -535,8 +535,7 @@ def train(model, iterator, optimizer, criterion, clip):
         trg = batch.trg
         
         optimizer.zero_grad()
-        print(len(src))
-        print(len(trg))
+
         output, _ = model(src, trg[:,:-1])
                 
         #output = [batch size, trg len - 1, output dim]
@@ -608,7 +607,7 @@ best_valid_loss = float('inf')
 for epoch in range(N_EPOCHS):
     
     start_time = time.time()
-    
+    print("Starting to Train for epoch: ", epoch)
     train_loss = train(model, train_iterator, optimizer, criterion, CLIP)
     valid_loss = evaluate(model, valid_iterator, criterion)
     
