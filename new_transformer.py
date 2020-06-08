@@ -18,11 +18,11 @@ import dill
 spacy_en = spacy.load('en')
 
 
-def tokenize_en(text):
+def tokenize_en(text, max_length=250):
     """
     Tokenizes English text from a string into a list of strings
     """
-    return [tok.text for tok in spacy_en.tokenizer(text)]
+    return [tok.text for tok in spacy_en.tokenizer(text)][:max_length-2]
 
 
 SRC = Field(tokenize = tokenize_en, 
@@ -53,17 +53,34 @@ test_txt = TabularDataset(
            skip_header=True, # if your csv header has a header, make sure to pass this to ensure it doesn't get proceesed as data!
            fields=td_datafields)
 print("Loaded Datasets")
-dill.dump(train_txt, './cured_data/train_txt')
-dill.dump(val_txt, './cured_data/val_txt')
-dill.dump(test_txt, './cured_data/test_txt')
-
-train_txt = dill.load('./cured_data/train_txt')
-val_txt = dill.load('./cured_data/val_txt')
-test_txt = dill.load('./cured_data/test_txt')
 SRC.build_vocab(train_txt)
 TRG.build_vocab(train_txt)
 
+""" with open("model/SRC.Field","wb")as f:
+     dill.dump(SRC,f)
+with open("model/TRG.Field","wb")as f:
+     dill.dump(TRG,f)
+with open("model/test.DS","wb")as f:
+     dill.dump(test_txt,f)
+with open("model/train.DS","wb")as f:
+     dill.dump(train_txt,f)
+with open("model/val.DS","wb")as f:
+     dill.dump(val_txt,f)
 
+
+with open("model/SRC.Field","rb")as f:
+     SRC=dill.load(f)
+with open("model/TRG.Field","rb")as f:
+     TRG=dill.load(f)
+with open("model/train.DS","rb")as f:
+     train_txt=dill.load(f)
+with open("model/val.DS","rb")as f:
+     val_txt=dill.load(f)
+with open("model/test.DS","rb")as f:
+     test_txt=dill.load(f) """
+          
+SRC.build_vocab(train_txt)
+TRG.build_vocab(train_txt)
 SEED = 1234
 
 random.seed(SEED)
@@ -78,7 +95,7 @@ TRG.build_vocab(train_txt, min_freq = 2)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-BATCH_SIZE = 1
+BATCH_SIZE = 128
 print("Starting iterator")
 train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
     (train_txt, val_txt, test_txt), 
@@ -94,12 +111,14 @@ class Encoder(nn.Module):
                  pf_dim,
                  dropout, 
                  device,
-                 max_length = 100):
+                 max_length = 250
+                 ):
         super().__init__()
 
         self.device = device
-        
+        print("Before embedding")
         self.tok_embedding = nn.Embedding(input_dim, hid_dim)
+        print("After embedding")
         self.pos_embedding = nn.Embedding(max_length, hid_dim)
         
         self.layers = nn.ModuleList([EncoderLayer(hid_dim, 
@@ -281,7 +300,7 @@ class Decoder(nn.Module):
                  pf_dim, 
                  dropout, 
                  device,
-                 max_length = 100):
+                 max_length = 250):
         super().__init__()
         
         self.device = device
@@ -516,7 +535,8 @@ def train(model, iterator, optimizer, criterion, clip):
         trg = batch.trg
         
         optimizer.zero_grad()
-        
+        print(len(src))
+        print(len(trg))
         output, _ = model(src, trg[:,:-1])
                 
         #output = [batch size, trg len - 1, output dim]
@@ -610,12 +630,12 @@ test_loss = evaluate(model, test_iterator, criterion)
 
 print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
 
-def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 50):
+def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 250):
     
     model.eval()
         
     if isinstance(sentence, str):
-        nlp = spacy.load('de')
+        nlp = spacy.load('en')
         tokens = [token.text.lower() for token in nlp(sentence)]
     else:
         tokens = [token.lower() for token in sentence]
@@ -720,28 +740,5 @@ print(f'predicted trg = {translation}')
 
 display_attention(src, translation, attention)
 
-from torchtext.data.metrics import bleu_score
+torch.save(model.state_dict(), 'transformer_model_250.pt')
 
-def calculate_bleu(data, src_field, trg_field, model, device, max_len = 50):
-    
-    trgs = []
-    pred_trgs = []
-    
-    for datum in data:
-        
-        src = vars(datum)['src']
-        trg = vars(datum)['trg']
-        
-        pred_trg, _ = translate_sentence(src, src_field, trg_field, model, device, max_len)
-        
-        #cut off <eos> token
-        pred_trg = pred_trg[:-1]
-        
-        pred_trgs.append(pred_trg)
-        trgs.append([trg])
-        
-    return bleu_score(pred_trgs, trgs)
-
-bleu_score = calculate_bleu(test_data, SRC, TRG, model, device)
-
-print(f'BLEU score = {bleu_score*100:.2f}')
