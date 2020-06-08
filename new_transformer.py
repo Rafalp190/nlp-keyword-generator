@@ -100,6 +100,7 @@ print("Starting iterator")
 train_iterator, valid_iterator, test_iterator = BucketIterator.splits(
     (train_txt, val_txt, test_txt), 
      batch_size = BATCH_SIZE,
+     sort=False,
      device = device)
 
 class Encoder(nn.Module):
