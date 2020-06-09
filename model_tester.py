@@ -1,5 +1,3 @@
-#Tokenizer
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,7 +16,7 @@ import dill
 spacy_en = spacy.load('en')
 
 
-def tokenize_en(text, max_length=250):
+def tokenize_en(text, max_length=100):
     """
     Tokenizes English text from a string into a list of strings
     """
@@ -112,7 +110,7 @@ class Encoder(nn.Module):
                  pf_dim,
                  dropout, 
                  device,
-                 max_length = 250
+                 max_length = 100
                  ):
         super().__init__()
 
@@ -301,7 +299,7 @@ class Decoder(nn.Module):
                  pf_dim, 
                  dropout, 
                  device,
-                 max_length = 250):
+                 max_length = 100):
         super().__init__()
         
         self.device = device
@@ -600,37 +598,9 @@ def epoch_time(start_time, end_time):
     elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
     return elapsed_mins, elapsed_secs
 
-N_EPOCHS = 10
-CLIP = 1
-
-best_valid_loss = float('inf')
-
-for epoch in range(N_EPOCHS):
-    
-    start_time = time.time()
-    print("Starting to Train for epoch: ", epoch)
-    train_loss = train(model, train_iterator, optimizer, criterion, CLIP)
-    valid_loss = evaluate(model, valid_iterator, criterion)
-    
-    end_time = time.time()
-    
-    epoch_mins, epoch_secs = epoch_time(start_time, end_time)
-    
-    if valid_loss < best_valid_loss:
-        best_valid_loss = valid_loss
-        torch.save(model.state_dict(), 'tut6-model.pt')
-    
-    print(f'Epoch: {epoch+1:02} | Time: {epoch_mins}m {epoch_secs}s')
-    print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
-    print(f'\t Val. Loss: {valid_loss:.3f} |  Val. PPL: {math.exp(valid_loss):7.3f}')
-
 model.load_state_dict(torch.load('model/transformer_model.pt'))
 
-test_loss = evaluate(model, test_iterator, criterion)
-
-print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
-
-def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 250):
+def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 100):
     
     model.eval()
         
@@ -673,6 +643,15 @@ def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 
     
     return trg_tokens[1:], attention
 
+def parse_target(predicted_trg):
+    predicted_trg = "".join(predicted_trg)
+    predicted_trg = predicted_trg.replace("<unk>","")
+    predicted_trg = predicted_trg.replace("<eos>","")
+    predicted_trg = predicted_trg.replace("[","")
+    predicted_trg = predicted_trg.replace("]","")
+    predicted_trg = predicted_trg.replace("'","")
+    predicted_trg = predicted_trg.split(",")
+    predicted_trg = list(filter(None, predicted_trg))
 
 def display_attention(sentence, translation, attention, n_heads = 8, n_rows = 4, n_cols = 2):
     
@@ -699,46 +678,44 @@ def display_attention(sentence, translation, attention, n_heads = 8, n_rows = 4,
     plt.show()
     plt.close()
 
-example_idx = 8
+
+example_idx = 150
 
 src = vars(train_txt.examples[example_idx])['src']
 trg = vars(train_txt.examples[example_idx])['trg']
 
 print(f'src = {src}')
-print(f'trg = {trg}')
+print(f'trg = {parse_target(trg)}')
 
-translation, attention = translate_sentence(src, SRC, TRG, model, device)
+translation1, attention = translate_sentence(src, SRC, TRG, model, device)
 
-print(f'predicted trg = {translation}')
+print(f'predicted trg = {parse_target(translation1)}')
 
-display_attention(src, translation, attention)
+display_attention(src, translation1, attention)
 
-example_idx = 6
+example_idx = 310
 
 src = vars(val_txt.examples[example_idx])['src']
 trg = vars(val_txt.examples[example_idx])['trg']
 
 print(f'src = {src}')
-print(f'trg = {trg}')
+print(f'trg = {parse_target(trg)}')
 
-translation, attention = translate_sentence(src, SRC, TRG, model, device)
+translation2, attention = translate_sentence(src, SRC, TRG, model, device)
 
-print(f'predicted trg = {translation}')
-display_attention(src, translation, attention)
+print(f'predicted trg = {parse_target(translation2)}')
+display_attention(src, translation2, attention)
 
-example_idx = 10
+example_idx = 44
 
 src = vars(test_txt.examples[example_idx])['src']
 trg = vars(test_txt.examples[example_idx])['trg']
 
 print(f'src = {src}')
-print(f'trg = {trg}')
+print(f'trg = {parse_target(trg)}')
 
-translation, attention = translate_sentence(src, SRC, TRG, model, device)
+translation3, attention = translate_sentence(src, SRC, TRG, model, device)
 
-print(f'predicted trg = {translation}')
+print(f'predicted trg = {parse_target(translation3)}')
 
-display_attention(src, translation, attention)
-
-
-
+display_attention(src, translation3, attention)
